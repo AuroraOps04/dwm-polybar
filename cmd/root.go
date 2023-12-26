@@ -44,27 +44,34 @@ func tagIdsToBitMask(tags []int) int {
 func printResult(tags []ipc.Tag, monitor ipc.Monitor) {
 	var res []string
 	for _, tag := range tags {
-		if tag.IsOccupied || tag.IsActive {
-			tagslice := make([]int, 1)
-			tagslice[0] = tag.BitMask
-			fill_color_begin := ""
-			fill_color_end := ""
-			if tag.IsActive {
-				fill_color_begin = "%{B#005577}"
-			}
-			if tag.IsUrgent {
-				fill_color_begin = "%{B#005577}"
-			}
-			if fill_color_begin != "" {
-				fill_color_end = "%{B-}"
-			}
+		// if tag.IsOccupied || tag.IsActive {
+		// tagslice := make([]int, 1)
+		// tagslice[0] = tag.BitMask
+		fill_color_begin := ""
+		fill_color_end := ""
 
-			res = append(res, fmt.Sprintf("%s%s %s %s%s", "%{A1:dwm-msg run_command view "+strconv.Itoa(tag.BitMask)+":}", fill_color_begin, tag.Name, fill_color_end, "%{A}"))
-
+		if !(tag.IsActive || tag.IsOccupied) {
+			continue
 		}
+
+		if tag.IsActive {
+			fill_color_begin = "%{B#4DB6AC}"
+		}
+		if tag.IsUrgent {
+			fill_color_begin = "%{B#00796B}"
+		}
+		if fill_color_begin != "" {
+			fill_color_end = "%{B-}"
+		}
+
+		res = append(res, fmt.Sprintf("%s%s   %s   %s%s", "%{A1:dwm-msg run_command view "+strconv.Itoa(tag.BitMask)+":}",
+			fill_color_begin, tag.Name, fill_color_end, "%{A}"))
+
 	}
-	res = append(res, monitor.Layout.Symbol.Current)
-	fmt.Println(strings.Join(res, " "))
+	if monitor.Layout.Symbol.Current != "" {
+		res = append(res, "%{B#004D40}  " +monitor.Layout.Symbol.Current + "  %{B-}%{A}")
+	}
+	fmt.Println(strings.Join(res, ""))
 }
 
 func changeTags(tags []ipc.Tag, state ipc.IPCTagChangeEvent) []ipc.Tag {
@@ -176,7 +183,7 @@ tail = true`,
 			printResult(tags, monitor)
 
 			// subscribe to tag and layout updates
-      err = ipc.InitSubscribe(&c)
+			err = ipc.InitSubscribe(&c)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -187,29 +194,29 @@ tail = true`,
 				_, err := c.Read(buf)
 
 				if err != nil {
-          if err.Error() == "EOF" {
-            for {
-              c, err = net.Dial("unix", "/tmp/dwm.sock")
-              if err == nil {
-                err = ipc.InitSubscribe(&c)
-                if err != nil {
-                  continue
-                }
-                for i := range tags {
-                  tags[i].IsActive = false
-                  tags[i].IsUrgent = false
-                }
-                tags[0].IsActive = true
-                printResult(tags, monitor)
-                break
-              }
-              time.Sleep(time.Duration(500) * time.Millisecond)
-              log.Println(err)
-            }
-          } else {
-            log.Println(err)
-          }
-          continue
+					if err.Error() == "EOF" {
+						for {
+							c, err = net.Dial("unix", "/tmp/dwm.sock")
+							if err == nil {
+								err = ipc.InitSubscribe(&c)
+								if err != nil {
+									continue
+								}
+								for i := range tags {
+									tags[i].IsActive = false
+									tags[i].IsUrgent = false
+								}
+								tags[0].IsActive = true
+								printResult(tags, monitor)
+								break
+							}
+							time.Sleep(time.Duration(500) * time.Millisecond)
+							log.Println(err)
+						}
+					} else {
+						log.Println(err)
+					}
+					continue
 				}
 
 				next := 0
